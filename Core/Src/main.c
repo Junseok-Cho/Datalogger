@@ -174,12 +174,14 @@ int main(void)
   ILI9341_Init();
   init_dht11(&dht,&htim1,GPIOB,GPIO_PIN_9);
 
+  // Time Setting Code
   /*DS1302_WriteByte(0x80,0x00);
   DS1302_WriteByte(0x82,0x28);
   DS1302_WriteByte(0x84,0x16);
   DS1302_WriteByte(0x86,0x17);
   DS1302_WriteByte(0x88,0x01);
   DS1302_WriteByte(0x8C,0x25);*/
+
 
   ILI9341_FillScreen(WHITE);
   ILI9341_DrawText("Start",FONT4,95,170,BLACK,WHITE);
