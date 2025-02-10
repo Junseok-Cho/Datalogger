@@ -174,7 +174,7 @@ int main(void)
   ILI9341_Init();
   init_dht11(&dht,&htim1,GPIOB,GPIO_PIN_9);
 
-  // !!!! Time Setting Code !!!!
+  // !!!!! Time Setting Code !!!!!
   /*DS1302_WriteByte(0x80,0x00);
   DS1302_WriteByte(0x82,0x28);
   DS1302_WriteByte(0x84,0x16);
