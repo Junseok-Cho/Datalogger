@@ -186,9 +186,6 @@ int main(void)
   ILI9341_FillScreen(WHITE);
   ILI9341_DrawText("Start",FONT4,95,170,BLACK,WHITE);
 
-  HAL_GPIO_WritePin(GPIOC,GPIO_PIN_11,GPIO_PIN_SET);
-  HAL_GPIO_WritePin(GPIOC,GPIO_PIN_10,GPIO_PIN_RESET);
-
   HAL_Delay(5000);
 
   ILI9341_FillScreen(WHITE);
@@ -505,7 +502,11 @@ int main(void)
 
 		sprintf(final,"%d%02d%02d%02d%02d%02d %d %d %.2f",timedata.realyear,timedata.tenmonth,timedata.tendate,timedata.tenhour,timedata.tenmin,timedata.tensec,finaltemp,finalhumi,finaldist);
 
+		HAL_UART_Transmit(&huart1,(uint8_t*)"AT+CGACT?\r\n",strlen("AT+CGACT?\r\n"),1000);
+		HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
 
+		if((strstr((const char*)modem,"1,1") != NULL))
+		{
 		sprintf(send,"AT^SISW=0,%d\r\n",strlen(final));
 
 		HAL_UART_Transmit(&huart1,(uint8_t*)send,strlen(send),1000);
@@ -513,6 +514,7 @@ int main(void)
 		HAL_Delay(2000);
 
 		HAL_UART_Transmit(&huart1,(uint8_t*)final,strlen(final),1000);
+		}
 
 	    distco = 0;
 		tempco = 0;
