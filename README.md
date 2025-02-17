@@ -10,4 +10,5 @@ STM32F013RB를 이용한 센서 데이터 수집 저장
 
 ## Use Library link  
 [ILI9341] : https://github.com/eziya/STM32_HAL_ILI9341  
-[DHT11] : https://github.com/mesutkilic/DHT11-STM32-Library/blob/master/mk_dht11.h
+[DHT11] : https://github.com/mesutkilic/DHT11-STM32-Library/blob/master/mk_dht11.h  
+[SD module] : https://github.com/eziya/STM32_SPI_SDCARD
