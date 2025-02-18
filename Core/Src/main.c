@@ -78,6 +78,7 @@ char final[50] = { 0 };
 char hcsr[50] = { 0 };
 char humitemp[30] = { 0 };
 char send[30] = { 0 };
+char sdfinal[50] = { 0 };
 
 uint8_t timer = 0;
 uint16_t data;
@@ -527,11 +528,13 @@ int main(void)
 	    finalhumi = humico/stack;
 
 		sprintf(final,"%d%02d%02d%02d%02d%02d %d %d %.2f",timedata.realyear,timedata.tenmonth,timedata.tendate,timedata.tenhour,timedata.tenmin,timedata.tensec,finaltemp,finalhumi,finaldist);
+		sprintf(sdfinal,"%d-%02d-%02d.txt",timedata.realyear,timedata.tenmonth,timedata.tendate);
 
 		HAL_GPIO_WritePin(GPIOC,GPIO_PIN_9,GPIO_PIN_SET);
 		HAL_GPIO_WritePin(GPIOA,GPIO_PIN_1,GPIO_PIN_RESET);
 
-		f_open(&fil,"logerTest.txt",FA_WRITE | FA_READ | FA_OPEN_ALWAYS);
+
+		f_open(&fil,sdfinal,FA_WRITE | FA_READ | FA_OPEN_ALWAYS);
 		f_lseek(&fil, f_size(&fil));
 		f_puts(final,&fil);
 		f_puts("\n",&fil);
