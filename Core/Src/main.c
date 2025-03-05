@@ -192,14 +192,7 @@ int main(void)
   ILI9341_Init();
   init_dht11(&dht,&htim1,GPIOB,GPIO_PIN_9);
 
-  HAL_GPIO_WritePin(GPIOC,GPIO_PIN_9,GPIO_PIN_SET);
-  HAL_GPIO_WritePin(GPIOA,GPIO_PIN_1,GPIO_PIN_RESET);
-
   f_mount(&fs,"",0);
-
-  HAL_GPIO_WritePin(GPIOA,GPIO_PIN_1,GPIO_PIN_SET);
-  HAL_GPIO_WritePin(GPIOC,GPIO_PIN_9,GPIO_PIN_RESET);
-
   // !!!!!! Time Setting Code !!!!!!
 
   /*DS1302_WriteByte(0x80,0x00);
@@ -295,7 +288,7 @@ int main(void)
    HAL_Delay(1000);
 
    memset(modem,0,sizeof(modem));
-   HAL_UART_Transmit(&huart1,(uint8_t*)"AT+CGDCONT=1,\"IP\",\"lte.sktelecom.com\"\r\n",strlen("AT+CGDCONT=1,\"IP\",\"lte.sktelecom.com\"\r\n"),1000);
+   HAL_UART_Transmit(&huart1,(uint8_t*)"AT+CGDCONT=1,\"IP\",\"3gnet\"\r\n",strlen("AT+CGDCONT=1,\"IP\",\"3gnet\"\r\n"),1000);
    HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
 
    if(strstr((const char*)modem,"OK") == NULL)
@@ -341,7 +334,7 @@ int main(void)
 
    memset(modem,0,sizeof(modem));
 
-   HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SICS=0,\"apn\",\"lte.sktelecom.com\"\r\n",strlen("AT^SICS=0,\"apn\",\"lte.sktelecom.com\"\r\n"),1000);
+   HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SICS=0,\"apn\",\"3gnet\"\r\n",strlen("AT^SICS=0,\"apn\",\"3gnet\"\r\n"),1000);
    HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
 
    if(strstr((const char*)modem, "OK") == NULL)
@@ -530,18 +523,11 @@ int main(void)
 		sprintf(final,"%d%02d%02d%02d%02d%02d %d %d %.2f",timedata.realyear,timedata.tenmonth,timedata.tendate,timedata.tenhour,timedata.tenmin,timedata.tensec,finaltemp,finalhumi,finaldist);
 		sprintf(sdfinal,"%d-%02d-%02d.txt",timedata.realyear,timedata.tenmonth,timedata.tendate);
 
-		HAL_GPIO_WritePin(GPIOC,GPIO_PIN_9,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(GPIOA,GPIO_PIN_1,GPIO_PIN_RESET);
-
-
 		f_open(&fil,sdfinal,FA_WRITE | FA_READ | FA_OPEN_ALWAYS);
 		f_lseek(&fil, f_size(&fil));
 		f_puts(final,&fil);
 		f_puts("\n",&fil);
 		f_close(&fil);
-
-		HAL_GPIO_WritePin(GPIOA,GPIO_PIN_1,GPIO_PIN_SET);
-		HAL_GPIO_WritePin(GPIOC,GPIO_PIN_9,GPIO_PIN_RESET);
 
 		HAL_UART_Transmit(&huart1,(uint8_t*)"AT+CGACT?\r\n",strlen("AT+CGACT?\r\n"),1000);
 		HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
@@ -841,8 +827,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, CLK_Pin|DAT_Pin|RST_Pin|RED_Pin
-                          |GREEN_Pin|TRIG_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, CLK_Pin|DAT_Pin|RST_Pin|TRIG_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);
@@ -866,11 +851,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : CLK_Pin DAT_Pin RST_Pin LED_Pin
-                           RESET_Pin CS_Pin RED_Pin GREEN_Pin
-                           TRIG_Pin */
+                           RESET_Pin CS_Pin TRIG_Pin */
   GPIO_InitStruct.Pin = CLK_Pin|DAT_Pin|RST_Pin|LED_Pin
-                          |RESET_Pin|CS_Pin|RED_Pin|GREEN_Pin
-                          |TRIG_Pin;
+                          |RESET_Pin|CS_Pin|TRIG_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;

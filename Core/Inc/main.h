@@ -86,10 +86,6 @@ void Error_Handler(void);
 #define TCK_GPIO_Port GPIOA
 #define WarningLED_Pin GPIO_PIN_15
 #define WarningLED_GPIO_Port GPIOA
-#define RED_Pin GPIO_PIN_10
-#define RED_GPIO_Port GPIOC
-#define GREEN_Pin GPIO_PIN_11
-#define GREEN_GPIO_Port GPIOC
 #define TRIG_Pin GPIO_PIN_12
 #define TRIG_GPIO_Port GPIOC
 #define ECHO_Pin GPIO_PIN_2
