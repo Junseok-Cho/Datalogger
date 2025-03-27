@@ -76,22 +76,26 @@ UART_HandleTypeDef huart2;
 char modem[80] = { 0 };
 char final[70] = { 0 };
 char hcsr[50] = { 0 };
+char rssifront[30] = { 0 };
 char humitemp[30] = { 0 };
 char send[30] = { 0 };
 char sdfinal[50] = { 0 };
 char bugfinal[70] = { 0 };
 char sdbugfinal[50] = { 0 };
 char bugbuff[60] = { 0 };
+char csq[30] = { 0 };
 
 uint8_t timer = 0;
+uint8_t datastack = 0;
 uint16_t data;
 uint32_t tempco = 0;
 uint32_t humico = 0;
 dht11_t dht;
 uint16_t finaltemp = 0;
 uint16_t finalhumi = 0;
-uint16_t stack = 0;
-uint16_t warning = 0;
+uint16_t tempstack = 0;
+uint16_t humistack = 0;
+uint16_t diststack = 0;
 
 char buffer[2000] = "";
 char yearcom[50] = "";
@@ -101,6 +105,9 @@ char seccom[50] = "";
 char datecom[50] = "";
 char monthcom[50] = "";
 
+uint8_t temperror = 0;
+uint8_t humierror = 0;
+uint8_t disterror = 0;
 uint8_t sec = 0;
 uint8_t min = 0;
 uint8_t hour = 0;
@@ -108,6 +115,7 @@ uint8_t date = 0;
 uint8_t month = 0;
 uint8_t year = 0;
 uint8_t tenyear = 0;
+int rssi = 0;
 
 datameet timedata;
 
@@ -200,10 +208,10 @@ int main(void)
   f_mount(&fs,"",0);
   // !!!!!! Time Setting Code !!!!!!
 
-  /*DS1302_WriteByte(0x80,0x00);
-  DS1302_WriteByte(0x82,0x50);
-  DS1302_WriteByte(0x84,0x12);
-  DS1302_WriteByte(0x86,0x19);
+  /*DS1302_WriteByte(0x80,0x50);
+  DS1302_WriteByte(0x82,0x28);
+  DS1302_WriteByte(0x84,0x11);
+  DS1302_WriteByte(0x86,0x26);
   DS1302_WriteByte(0x88,0x03);
   DS1302_WriteByte(0x8C,0x25);*/
 
@@ -508,37 +516,72 @@ int main(void)
 	    uint8_t temp = dht.temperature;
 	    uint8_t humi = dht.humidty;
 
+	    if(distance > 300 || distance < 2)
+	    {
+	    	disterror++;
+	    }
+	    else
+	    {
+	    	 distco += distance;
+	    	 diststack++;
+	    }
+
+	    if(temp > 50 || temp < 0)
+	    {
+	    	temperror++;
+	    }
+	    else
+	    {
+	        tempco += temp;
+	        tempstack++;
+	    }
+
+	    if(humi > 90 || humi < 20)
+	    {
+	    	humierror++;
+	    }
+	    else
+	    {
+	    	humico += humi;
+	    	humistack++;
+	    }
+
 	    sprintf(hcsr,"Distance : %.2fcm",distance);
 	    sprintf(humitemp,"Temp : %d*C Humi : %drh",temp,humi);
 
 	    ILI9341_DrawText(hcsr,FONT4,15,120,BLACK, WHITE);
 	    ILI9341_DrawText(humitemp,FONT4,15,170,BLACK,WHITE);
 
-	    distco += distance;
-	    tempco += temp;
-	    humico += humi;
-	    stack++;
-
 	    if(timedata.tenmin % 10 == 0 && timedata.tensec == 0)
 	    {
-	    finaldist = distco/stack;
-	    finaltemp = tempco/stack;
-	    finalhumi = humico/stack;
+	    finaldist = distco/diststack;
+	    finaltemp = tempco/tempstack;
+	    finalhumi = humico/humistack;
 
-		sprintf(final,"%d%02d%02d%02d%02d%02d %d %d %.2f",timedata.realyear,timedata.tenmonth,timedata.tendate,timedata.tenhour,timedata.tenmin,timedata.tensec,finaltemp,finalhumi,finaldist);
+	    memset(modem,0,sizeof(modem));
+
+	    HAL_UART_Transmit(&huart1,(uint8_t*)"AT+CSQ\r\n",strlen("AT+CSQ\r\n"),1000);
+	    HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+	    char *csqptr = strstr(modem,":");
+	    sscanf(csqptr,": %d",&rssi);
+
+		sprintf(final,"%d-%02d-%02d/%02d:%02d:%02d %d %d %.2f %02d %d %d %d",timedata.realyear,timedata.tenmonth,timedata.tendate,timedata.tenhour,timedata.tenmin,timedata.tensec,finaltemp,finalhumi,finaldist,rssi,disterror,temperror,humierror);
 		sprintf(sdfinal,"%d-%02d-%02d.txt",timedata.realyear,timedata.tenmonth,timedata.tendate);
+	    sprintf(rssifront,"Rssi[db] : %d", rssi);
 
-		f_open(&fil,sdfinal,FA_WRITE | FA_READ | FA_OPEN_ALWAYS);
-		f_lseek(&fil, f_size(&fil));
-		f_puts(final,&fil);
-		f_puts("\n",&fil);
-		f_close(&fil);
+	    ILI9341_DrawText(rssifront,FONT4,40,60,BLACK,WHITE);
 
 		HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISI?\r\n",strlen("AT^SISI?\r\n"),1000);
 		HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
 
 		if((strstr((const char*)modem,"4") != NULL))
 		{
+		f_open(&fil,sdfinal,FA_WRITE | FA_READ | FA_OPEN_ALWAYS);
+		f_lseek(&fil, f_size(&fil));
+		f_puts(final,&fil);
+		f_puts("\n",&fil);
+		f_close(&fil);
+
 		sprintf(send,"AT^SISW=0,%d\r\n",strlen(final));
 
 		HAL_UART_Transmit(&huart1,(uint8_t*)send,strlen(send),1000);
@@ -559,11 +602,15 @@ int main(void)
 		finalhumi = 0;
 		finaltemp = 0;
 		finaldist = 0;
-		stack = 0;
-
+		diststack = 0;
+		tempstack = 0;
+		humistack = 0;
+		disterror = 0;
+		temperror = 0;
+		humierror = 0;
 	    }
 
-	    HAL_Delay(770);
+	    HAL_Delay(720);
   }
   /* USER CODE END 3 */
 }
@@ -1103,78 +1150,112 @@ void _Error_Handler(char *file, int line)
 
 void Disconnect()
 {
+	            sprintf(bugfinal,"%d-%02d-%02d/%02d:%02d:%02d %d %d %.2f %02d %d %d %d",timedata.realyear,timedata.tenmonth,timedata.tendate,timedata.tenhour,timedata.tenmin,timedata.tensec,finaltemp,finalhumi,finaldist,rssi,disterror,temperror,humierror);
+                sprintf(sdbugfinal,"%d-%02d-%02d Disconnect.txt",timedata.realyear,timedata.tenmonth,timedata.tendate);
+
+                HAL_UART_Transmit(&huart1,(uint8_t*)"AT+CREG?\r\n",strlen("AT+CREG?\r\n"), 1000);
+                HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+
+                if(strstr((const char*)modem,"OK") == NULL)
+                {
+    	            f_open(&filbug,sdbugfinal,FA_WRITE | FA_READ | FA_OPEN_ALWAYS);
+    	            f_lseek(&filbug, f_size(&filbug));
+    	            f_puts(bugfinal,&filbug);
+    	            f_puts(" : 1.CREG Error\n",&filbug);
+    	            f_close(&filbug);
+
+    	            ILI9341_FillScreen(WHITE);
+    				ILI9341_DrawText("Re Connecting..\r\n",FONT4,50,160,BLACK, WHITE);
+
+    				HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISC=0\r\n",strlen("AT^SISC=0\r\n"),1000);
+
+    				HAL_Delay(3000);
+
+    			    HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISO=0\r\n",strlen("AT^SISO=0\r\n"),1000);
+    			    HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+
+    			    HAL_Delay(5000);
+
+    				ILI9341_FillScreen(WHITE);
+
+    				return;
+                }
+
+                HAL_UART_Transmit(&huart1,(uint8_t*)"AT+CGACT?\r\n",strlen("AT+CGACT?\r\n"), 1000);
+                HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+
+                if(strstr((const char*)modem,"1,1") == NULL)
+                {
+    	            f_open(&filbug,sdbugfinal,FA_WRITE | FA_READ | FA_OPEN_ALWAYS);
+    	            f_lseek(&filbug, f_size(&filbug));
+    	            f_puts(bugfinal,&filbug);
+    	            f_puts(" : 2.CGACT Error\n",&filbug);
+    	            f_close(&filbug);
+
+    	            ILI9341_FillScreen(WHITE);
+    				ILI9341_DrawText("Re Connecting..\r\n",FONT4,50,160,BLACK, WHITE);
+
+    				HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISC=0\r\n",strlen("AT^SISC=0\r\n"),1000);
+
+    				HAL_Delay(3000);
+
+    			    HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISO=0\r\n",strlen("AT^SISO=0\r\n"),1000);
+    			    HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+
+    			    HAL_Delay(5000);
+
+    				ILI9341_FillScreen(WHITE);
+
+    				return;
+                }
+
+                HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISS?\r\n",strlen("AT^SISS?\r\n"), 1000);
+                HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+
+                if(strstr((const char*)modem,"4") == NULL)
+                {
+    	            f_open(&filbug,sdbugfinal,FA_WRITE | FA_READ | FA_OPEN_ALWAYS);
+    	            f_lseek(&filbug, f_size(&filbug));
+    	            f_puts(bugfinal,&filbug);
+    	            f_puts(" : 3.SISS Error\n",&filbug);
+    	            f_close(&filbug);
+
+    	            ILI9341_FillScreen(WHITE);
+    				ILI9341_DrawText("Re Connecting..\r\n",FONT4,50,160,BLACK, WHITE);
+
+    				HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISC=0\r\n",strlen("AT^SISC=0\r\n"),1000);
+
+    				HAL_Delay(3000);
+
+    			    HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISO=0\r\n",strlen("AT^SISO=0\r\n"),1000);
+    			    HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+
+    			    HAL_Delay(5000);
+
+    				ILI9341_FillScreen(WHITE);
+
+    				return;
+                }
+
+	            f_open(&filbug,sdbugfinal,FA_WRITE | FA_READ | FA_OPEN_ALWAYS);
+	            f_lseek(&filbug, f_size(&filbug));
+	            f_puts(bugfinal,&filbug);
+	            f_puts(" : Unknown\n",&filbug);
+	            f_close(&filbug);
+
 	            ILI9341_FillScreen(WHITE);
-				ILI9341_DrawText("Re Connecting..\r\n",FONT4,50,160,BLACK, WHITE);
+	            ILI9341_DrawText("Re Connecting..\r\n",FONT4,50,160,BLACK, WHITE);
 
-				HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISC=0\r\n",strlen("AT^SISC=0\r\n"),1000);
+	            HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISC=0\r\n",strlen("AT^SISC=0\r\n"),1000);
 
-				HAL_Delay(3000);
+	            HAL_Delay(3000);
 
-			    HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISO=0\r\n",strlen("AT^SISO=0\r\n"),1000);
-			    HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+	            HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISO=0\r\n",strlen("AT^SISO=0\r\n"),1000);
+	            HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
 
-			    HAL_Delay(5000);
+	            HAL_Delay(5000);
 
-				sprintf(bugfinal,"%d%02d%02d%02d%02d%02d %d %d %.2f",timedata.realyear,timedata.tenmonth,timedata.tendate,timedata.tenhour,timedata.tenmin,timedata.tensec,finaltemp,finalhumi,finaldist);
-			    sprintf(sdbugfinal,"%d-%02d-%02d Disconnect.txt",timedata.realyear,timedata.tenmonth,timedata.tendate);
-
-				HAL_UART_Transmit(&huart1,(uint8_t*)"AT+CREG?\r\n",strlen("AT+CREG?\r\n"),1000);
-				HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
-
-				if (strstr((const char*)modem, "0,1") == NULL && strstr((const char*)modem, "0,5") == NULL)
-				{
-					f_open(&filbug,sdbugfinal,FA_WRITE | FA_READ | FA_OPEN_ALWAYS);
-					f_lseek(&filbug, f_size(&filbug));
-					f_puts(bugfinal,&filbug);
-					f_puts("  CREG Error\n",&filbug);
-					f_close(&filbug);
-
-					ILI9341_FillScreen(WHITE);
-
-					return;
-				}
-
-				HAL_Delay(500);
-
-				HAL_UART_Transmit(&huart1,(uint8_t*)"AT+CGACT?\r\n",strlen("AT+CGACT?\r\n"), 1000);
-				HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
-
-				HAL_Delay(1000);
-
-				if(strstr((const char*)modem,"1,1") == NULL)
-				{
-					f_open(&filbug,sdbugfinal,FA_WRITE | FA_READ | FA_OPEN_ALWAYS);
-					f_lseek(&filbug, f_size(&filbug));
-					f_puts(bugfinal,&filbug);
-					f_puts("  CGACT Error\n",&filbug);
-					f_close(&filbug);
-
-					ILI9341_FillScreen(WHITE);
-
-				    return;
-				}
-
-				HAL_Delay(500);
-
-			    HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISI?\r\n",strlen("AT^SISI?\r\n"),1000);
-			    HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
-
-			    HAL_Delay(1000);
-
-			    if(strstr((const char*)modem, "4") == NULL)
-			    {
-					f_open(&filbug,sdbugfinal,FA_WRITE | FA_READ | FA_OPEN_ALWAYS);
-					f_lseek(&filbug, f_size(&filbug));
-					f_puts(bugfinal,&filbug);
-					f_puts("  SISI Error\n",&filbug);
-					f_close(&filbug);
-
-					ILI9341_FillScreen(WHITE);
-
-			       return;
-			    }
-
-				ILI9341_FillScreen(WHITE);
+	            ILI9341_FillScreen(WHITE);
 }
 /* USER CODE END 4 */
 
