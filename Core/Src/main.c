@@ -36,7 +36,7 @@
 /* USER CODE BEGIN PTD */
 FLASH_EraseInitTypeDef EraseInitStruct;
 
-typedef struct
+typedef struct datameet
 {
 	uint8_t tensec;
 	uint8_t tenmin;
@@ -69,8 +69,8 @@ DMA_HandleTypeDef hdma_spi2_tx;
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 
-UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
+UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
 char modem[80] = { 0 };
@@ -82,12 +82,9 @@ char send[30] = { 0 };
 char sdfinal[50] = { 0 };
 char bugfinal[70] = { 0 };
 char sdbugfinal[50] = { 0 };
-char bugbuff[60] = { 0 };
-char csq[30] = { 0 };
+char transfinal[70] = { 0 };
+char datafield[60] = { 0 };
 
-uint8_t timer = 0;
-uint8_t datastack = 0;
-uint16_t data;
 uint32_t tempco = 0;
 uint32_t humico = 0;
 dht11_t dht;
@@ -96,18 +93,14 @@ uint16_t finalhumi = 0;
 uint16_t tempstack = 0;
 uint16_t humistack = 0;
 uint16_t diststack = 0;
+uint16_t branch = 0;
 
-char buffer[2000] = "";
-char yearcom[50] = "";
-char hourcom[50] = "";
-char mincom[50] = "";
 char seccom[50] = "";
-char datecom[50] = "";
-char monthcom[50] = "";
 
-uint8_t temperror = 0;
-uint8_t humierror = 0;
-uint8_t disterror = 0;
+float temperror = 0;
+float humierror = 0;
+float disterror = 0;
+
 uint8_t sec = 0;
 uint8_t min = 0;
 uint8_t hour = 0;
@@ -132,8 +125,6 @@ FRESULT fres;
 DWORD fre_clust;
 FRESULT ress;
 
-uint32_t total,freee;
-char save[100];
 
 /* USER CODE END PV */
 
@@ -144,8 +135,8 @@ static void MX_DMA_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM2_Init(void);
-static void MX_USART1_UART_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
 void HAL_Delayus(uint16_t);
 
@@ -198,9 +189,9 @@ int main(void)
   MX_SPI2_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
-  MX_USART1_UART_Init();
   MX_FATFS_Init();
   MX_USART2_UART_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
   ILI9341_Init();
   init_dht11(&dht,&htim1,GPIOB,GPIO_PIN_9);
@@ -237,8 +228,8 @@ int main(void)
 
 
    memset(modem,0,sizeof(modem));
-   HAL_UART_Transmit(&huart1,(uint8_t*)"AT\r\n",strlen("AT\r\n"),1000);
-   HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+   HAL_UART_Transmit(&huart3,(uint8_t*)"AT\r\n",strlen("AT\r\n"),1000);
+   HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 
    if(strstr((const char*)modem,"OK") == NULL)
    {
@@ -262,7 +253,7 @@ int main(void)
    HAL_Delay(1000);
 
    memset(modem,0,sizeof(modem));
-   HAL_UART_Transmit(&huart1,(uint8_t*)"AT+CFUN=1,1\r\n",strlen("AT+CFUN=1,1\r\n"), 1000);
+   HAL_UART_Transmit(&huart3,(uint8_t*)"AT+CFUN=1,1\r\n",strlen("AT+CFUN=1,1\r\n"), 1000);
 
    HAL_Delay(1000);
 
@@ -279,8 +270,8 @@ int main(void)
    HAL_Delay(1000);
 
    memset(modem,0,sizeof(modem));
-   HAL_UART_Transmit(&huart1,(uint8_t*)"AT+CREG?\r\n",strlen("AT+CREG?\r\n"),1000);
-   HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+   HAL_UART_Transmit(&huart3,(uint8_t*)"AT+CREG?\r\n",strlen("AT+CREG?\r\n"),1000);
+   HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 
    if (strstr((const char*)modem, "0,1") == NULL && strstr((const char*)modem, "0,5") == NULL)
    {
@@ -301,8 +292,8 @@ int main(void)
    HAL_Delay(1000);
 
    memset(modem,0,sizeof(modem));
-   HAL_UART_Transmit(&huart1,(uint8_t*)"AT+CGDCONT=1,\"IP\",\"3gnet\"\r\n",strlen("AT+CGDCONT=1,\"IP\",\"3gnet\"\r\n"),1000);
-   HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+   HAL_UART_Transmit(&huart3,(uint8_t*)"AT+CGDCONT=1,\"IP\",\"3gnet\"\r\n",strlen("AT+CGDCONT=1,\"IP\",\"3gnet\"\r\n"),1000);
+   HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 
    if(strstr((const char*)modem,"OK") == NULL)
    {
@@ -324,8 +315,8 @@ int main(void)
 
    memset(modem,0,sizeof(modem));
 
-   HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SICS=0,\"conType\",\"GPRS0\"\r\n",strlen("AT^SICS=0,\"conType\",\"GPRS0\"\r\n"),1000);
-   HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+   HAL_UART_Transmit(&huart3,(uint8_t*)"AT^SICS=0,\"conType\",\"GPRS0\"\r\n",strlen("AT^SICS=0,\"conType\",\"GPRS0\"\r\n"),1000);
+   HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 
    if(strstr((const char*)modem,"OK") == NULL)
    {
@@ -347,8 +338,8 @@ int main(void)
 
    memset(modem,0,sizeof(modem));
 
-   HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SICS=0,\"apn\",\"3gnet\"\r\n",strlen("AT^SICS=0,\"apn\",\"3gnet\"\r\n"),1000);
-   HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+   HAL_UART_Transmit(&huart3,(uint8_t*)"AT^SICS=0,\"apn\",\"3gnet\"\r\n",strlen("AT^SICS=0,\"apn\",\"3gnet\"\r\n"),1000);
+   HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 
    if(strstr((const char*)modem, "OK") == NULL)
    {
@@ -368,8 +359,8 @@ int main(void)
 
    HAL_Delay(1000);
    memset(modem,0,sizeof(modem));
-   HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISS=0,\"srvType\",\"Socket\"\r\n",strlen("AT^SISS=0,\"srvType\",\"Socket\"\r\n"),1000);
-   HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+   HAL_UART_Transmit(&huart3,(uint8_t*)"AT^SISS=0,\"srvType\",\"Socket\"\r\n",strlen("AT^SISS=0,\"srvType\",\"Socket\"\r\n"),1000);
+   HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 
    if(strstr((const char*) modem, "OK") == NULL)
    {
@@ -389,8 +380,8 @@ int main(void)
 
    HAL_Delay(1000);
    memset(modem,0,sizeof(modem));
-   HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISS=0,\"conId\",0\r\n",strlen("AT^SISS=0,\"conId\",0\r\n"),1000);
-   HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+   HAL_UART_Transmit(&huart3,(uint8_t*)"AT^SISS=0,\"conId\",0\r\n",strlen("AT^SISS=0,\"conId\",0\r\n"),1000);
+   HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 
    if(strstr((const char*)modem,"OK") == NULL)
    {
@@ -411,8 +402,8 @@ int main(void)
    HAL_Delay(1000);
 
    memset(modem,0,sizeof(modem));
-   HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISS=0,\"address\",\"socktcp://49.254.169.124:5001\"\r\n",strlen("AT^SISS=0,\"address\",\"socktcp://49.254.169.124:5001\"\r\n"), 1000);
-   HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+   HAL_UART_Transmit(&huart3,(uint8_t*)"AT^SISS=0,\"address\",\"socktcp://49.254.169.71:5001\"\r\n",strlen("AT^SISS=0,\"address\",\"socktcp://49.254.169.71:5001\"\r\n"), 1000);
+   HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 
    if(strstr((const char*)modem, "OK") == NULL)
    {
@@ -432,8 +423,8 @@ int main(void)
 
    HAL_Delay(1000);
    memset(modem,0,sizeof(modem));
-   HAL_UART_Transmit(&huart1,(uint8_t*)"AT+CGATT?\r\n",strlen("AT+CGATT?\r\n"), 1000);
-   HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+   HAL_UART_Transmit(&huart3,(uint8_t*)"AT+CGATT?\r\n",strlen("AT+CGATT?\r\n"), 1000);
+   HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 
    if(strstr((const char*)modem,"1") == NULL)
    {
@@ -453,8 +444,8 @@ int main(void)
 
    HAL_Delay(1000);
    memset(modem,0,sizeof(modem));
-   HAL_UART_Transmit(&huart1,(uint8_t*)"AT+CGACT=1,1\r\n",strlen("AT+CGACT=1,1\r\n"), 1000);
-   HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+   HAL_UART_Transmit(&huart3,(uint8_t*)"AT+CGACT=1,1\r\n",strlen("AT+CGACT=1,1\r\n"), 1000);
+   HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 
    HAL_Delay(5000);
 
@@ -470,16 +461,19 @@ int main(void)
 
       HAL_Delay(1000);
 
+      HAL_UART_Transmit(&huart3,(uint8_t*)"AT^SISO=0\r\n",strlen("AT^SISO=0\r\n"),1000);
+      HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
+
+      HAL_Delay(3000);
+
       ILI9341_DrawText("Communication OK?",FONT4,60,160,BLACK,WHITE);
 
       HAL_Delay(1000);
 
-      HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISO=0\r\n",strlen("AT^SISO=0\r\n"),1000);
-      HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+      HAL_UART_Transmit(&huart3,(uint8_t*)"AT^SISI?\r\n",strlen("AT^SISI?\r\n"),1000);
+      HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 
-      HAL_Delay(3000);
-
-      if(strstr((const char*)modem, "OK") == NULL)
+      if(strstr((const char*)modem, "0,4") == NULL)
       {
      	 ILI9341_DrawText("Communication Fail",FONT4,40,160,BLACK,WHITE);
      	 HAL_Delay(1000);
@@ -536,7 +530,7 @@ int main(void)
 	        tempstack++;
 	    }
 
-	    if(humi > 90 || humi < 20)
+	    if(humi > 90 || humi < 15)
 	    {
 	    	humierror++;
 	    }
@@ -552,29 +546,53 @@ int main(void)
 	    ILI9341_DrawText(hcsr,FONT4,15,120,BLACK, WHITE);
 	    ILI9341_DrawText(humitemp,FONT4,15,170,BLACK,WHITE);
 
-	    if(timedata.tenmin % 10 == 0 && timedata.tensec == 0)
+	    if(timedata.tenmin % 10 == 0)
+	    {
+	    	branch++;
+	    }
+
+	    if(branch == 1)
 	    {
 	    finaldist = distco/diststack;
 	    finaltemp = tempco/tempstack;
 	    finalhumi = humico/humistack;
 
+	    disterror = disterror/(float)diststack * 100.0;
+	    temperror = temperror/(float)tempstack * 100.0;
+	    humierror = humierror/(float)humistack * 100.0;
+
+
 	    memset(modem,0,sizeof(modem));
 
-	    HAL_UART_Transmit(&huart1,(uint8_t*)"AT+CSQ\r\n",strlen("AT+CSQ\r\n"),1000);
-	    HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+	    HAL_UART_Transmit(&huart3,(uint8_t*)"AT+CSQ\r\n",strlen("AT+CSQ\r\n"),1000);
+	    HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 	    char *csqptr = strstr(modem,":");
 	    sscanf(csqptr,": %d",&rssi);
 
-		sprintf(final,"%d-%02d-%02d/%02d:%02d:%02d %d %d %.2f %02d %d %d %d",timedata.realyear,timedata.tenmonth,timedata.tendate,timedata.tenhour,timedata.tenmin,timedata.tensec,finaltemp,finalhumi,finaldist,rssi,disterror,temperror,humierror);
+		sprintf(final,"%d-%02d-%02d/%02d:%02d:%02d %d %d %.2f %02d %.1f %.1f %.1f",timedata.realyear,timedata.tenmonth,timedata.tendate,timedata.tenhour,timedata.tenmin,timedata.tensec,finaltemp,finalhumi,finaldist,rssi,disterror,temperror,humierror);
+		sprintf(datafield,"%d%02d%02d%02d%02d%02d %d %d %.2f %02d %.1f %.1f %.1f",timedata.realyear,timedata.tenmonth,timedata.tendate,timedata.tenhour,timedata.tenmin,timedata.tensec,finaltemp,finalhumi,finaldist,rssi,disterror,temperror,humierror);
+
+		uint8_t datalen = strlen(datafield);
+		uint8_t checksum = 0;
+        uint8_t checkstack = 0;
+
+		while(datafield[checkstack] != '\0')
+		{
+			checksum ^= datafield[checkstack];
+
+			checkstack++;
+		}
+
+		sprintf(transfinal,"#%d%d%02d%02d%02d%02d%02d %d %d %.2f %02d %.1f %.1f %.1f$%d@",datalen,timedata.realyear,timedata.tenmonth,timedata.tendate,timedata.tenhour,timedata.tenmin,timedata.tensec,finaltemp,finalhumi,finaldist,rssi,disterror,temperror,humierror,checksum);
 		sprintf(sdfinal,"%d-%02d-%02d.txt",timedata.realyear,timedata.tenmonth,timedata.tendate);
 	    sprintf(rssifront,"Rssi[db] : %d", rssi);
 
 	    ILI9341_DrawText(rssifront,FONT4,40,60,BLACK,WHITE);
 
-		HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISI?\r\n",strlen("AT^SISI?\r\n"),1000);
-		HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+		HAL_UART_Transmit(&huart3,(uint8_t*)"AT^SISI?\r\n",strlen("AT^SISI?\r\n"),1000);
+		HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 
-		if((strstr((const char*)modem,"4") != NULL))
+		if((strstr((const char*)modem,"0,4") != NULL))
 		{
 		f_open(&fil,sdfinal,FA_WRITE | FA_READ | FA_OPEN_ALWAYS);
 		f_lseek(&fil, f_size(&fil));
@@ -582,13 +600,13 @@ int main(void)
 		f_puts("\n",&fil);
 		f_close(&fil);
 
-		sprintf(send,"AT^SISW=0,%d\r\n",strlen(final));
+		sprintf(send,"AT^SISW=0,%d\r\n",strlen(transfinal));
 
-		HAL_UART_Transmit(&huart1,(uint8_t*)send,strlen(send),1000);
+		HAL_UART_Transmit(&huart3,(uint8_t*)send,strlen(send),1000);
 
 		HAL_Delay(1000);
 
-		HAL_UART_Transmit(&huart1,(uint8_t*)final,strlen(final),1000);
+		HAL_UART_Transmit(&huart3,(uint8_t*)transfinal,strlen(transfinal),1000);
 		}
 		else
 		{
@@ -608,6 +626,10 @@ int main(void)
 		disterror = 0;
 		temperror = 0;
 		humierror = 0;
+	    }
+	    else if(timedata.tenmin % 10 != 0)
+	    {
+	    	branch = 0;
 	    }
 
 	    HAL_Delay(720);
@@ -784,39 +806,6 @@ static void MX_TIM2_Init(void)
 }
 
 /**
-  * @brief USART1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART1_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART1_Init 0 */
-
-  /* USER CODE END USART1_Init 0 */
-
-  /* USER CODE BEGIN USART1_Init 1 */
-
-  /* USER CODE END USART1_Init 1 */
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART1_Init 2 */
-
-  /* USER CODE END USART1_Init 2 */
-
-}
-
-/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -846,6 +835,39 @@ static void MX_USART2_UART_Init(void)
   /* USER CODE BEGIN USART2_Init 2 */
 
   /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
+  * @brief USART3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART3_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART3_Init 0 */
+
+  /* USER CODE END USART3_Init 0 */
+
+  /* USER CODE BEGIN USART3_Init 1 */
+
+  /* USER CODE END USART3_Init 1 */
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 115200;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART3_Init 2 */
+
+  /* USER CODE END USART3_Init 2 */
 
 }
 
@@ -883,7 +905,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, CLK_Pin|DAT_Pin|RST_Pin|TRIG_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, CLK_Pin|DAT_Pin|RST_Pin|RESET_Pin
+                          |TRIG_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);
@@ -892,13 +915,10 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOA, LD2_Pin|WarningLED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, LED_Pin|RESET_Pin|CS_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOC, LED_Pin|CS_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(DC_GPIO_Port, DC_Pin, GPIO_PIN_SET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(DHT_DATA_GPIO_Port, DHT_DATA_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, DC_Pin|DHT_DATA_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -1150,11 +1170,11 @@ void _Error_Handler(char *file, int line)
 
 void Disconnect()
 {
-	            sprintf(bugfinal,"%d-%02d-%02d/%02d:%02d:%02d %d %d %.2f %02d %d %d %d",timedata.realyear,timedata.tenmonth,timedata.tendate,timedata.tenhour,timedata.tenmin,timedata.tensec,finaltemp,finalhumi,finaldist,rssi,disterror,temperror,humierror);
+	            sprintf(bugfinal,"%d-%02d-%02d/%02d:%02d:%02d %d %d %.2f %02d %.1f %.1f %.1f",timedata.realyear,timedata.tenmonth,timedata.tendate,timedata.tenhour,timedata.tenmin,timedata.tensec,finaltemp,finalhumi,finaldist,rssi,disterror,temperror,humierror);
                 sprintf(sdbugfinal,"%d-%02d-%02d Disconnect.txt",timedata.realyear,timedata.tenmonth,timedata.tendate);
 
-                HAL_UART_Transmit(&huart1,(uint8_t*)"AT+CREG?\r\n",strlen("AT+CREG?\r\n"), 1000);
-                HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+                HAL_UART_Transmit(&huart3,(uint8_t*)"AT+CREG?\r\n",strlen("AT+CREG?\r\n"), 1000);
+                HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 
                 if(strstr((const char*)modem,"OK") == NULL)
                 {
@@ -1167,12 +1187,12 @@ void Disconnect()
     	            ILI9341_FillScreen(WHITE);
     				ILI9341_DrawText("Re Connecting..\r\n",FONT4,50,160,BLACK, WHITE);
 
-    				HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISC=0\r\n",strlen("AT^SISC=0\r\n"),1000);
+    				HAL_UART_Transmit(&huart3,(uint8_t*)"AT^SISC=0\r\n",strlen("AT^SISC=0\r\n"),1000);
 
     				HAL_Delay(3000);
 
-    			    HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISO=0\r\n",strlen("AT^SISO=0\r\n"),1000);
-    			    HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+    			    HAL_UART_Transmit(&huart3,(uint8_t*)"AT^SISO=0\r\n",strlen("AT^SISO=0\r\n"),1000);
+    			    HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 
     			    HAL_Delay(5000);
 
@@ -1181,8 +1201,8 @@ void Disconnect()
     				return;
                 }
 
-                HAL_UART_Transmit(&huart1,(uint8_t*)"AT+CGACT?\r\n",strlen("AT+CGACT?\r\n"), 1000);
-                HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+                HAL_UART_Transmit(&huart3,(uint8_t*)"AT+CGACT?\r\n",strlen("AT+CGACT?\r\n"), 1000);
+                HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 
                 if(strstr((const char*)modem,"1,1") == NULL)
                 {
@@ -1195,12 +1215,12 @@ void Disconnect()
     	            ILI9341_FillScreen(WHITE);
     				ILI9341_DrawText("Re Connecting..\r\n",FONT4,50,160,BLACK, WHITE);
 
-    				HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISC=0\r\n",strlen("AT^SISC=0\r\n"),1000);
+    				HAL_UART_Transmit(&huart3,(uint8_t*)"AT^SISC=0\r\n",strlen("AT^SISC=0\r\n"),1000);
 
     				HAL_Delay(3000);
 
-    			    HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISO=0\r\n",strlen("AT^SISO=0\r\n"),1000);
-    			    HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+    			    HAL_UART_Transmit(&huart3,(uint8_t*)"AT^SISO=0\r\n",strlen("AT^SISO=0\r\n"),1000);
+    			    HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 
     			    HAL_Delay(5000);
 
@@ -1209,8 +1229,8 @@ void Disconnect()
     				return;
                 }
 
-                HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISS?\r\n",strlen("AT^SISS?\r\n"), 1000);
-                HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+                HAL_UART_Transmit(&huart3,(uint8_t*)"AT^SISS?\r\n",strlen("AT^SISS?\r\n"), 1000);
+                HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 
                 if(strstr((const char*)modem,"4") == NULL)
                 {
@@ -1223,12 +1243,12 @@ void Disconnect()
     	            ILI9341_FillScreen(WHITE);
     				ILI9341_DrawText("Re Connecting..\r\n",FONT4,50,160,BLACK, WHITE);
 
-    				HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISC=0\r\n",strlen("AT^SISC=0\r\n"),1000);
+    				HAL_UART_Transmit(&huart3,(uint8_t*)"AT^SISC=0\r\n",strlen("AT^SISC=0\r\n"),1000);
 
     				HAL_Delay(3000);
 
-    			    HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISO=0\r\n",strlen("AT^SISO=0\r\n"),1000);
-    			    HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+    			    HAL_UART_Transmit(&huart3,(uint8_t*)"AT^SISO=0\r\n",strlen("AT^SISO=0\r\n"),1000);
+    			    HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 
     			    HAL_Delay(5000);
 
@@ -1246,18 +1266,40 @@ void Disconnect()
 	            ILI9341_FillScreen(WHITE);
 	            ILI9341_DrawText("Re Connecting..\r\n",FONT4,50,160,BLACK, WHITE);
 
-	            HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISC=0\r\n",strlen("AT^SISC=0\r\n"),1000);
+	            HAL_UART_Transmit(&huart3,(uint8_t*)"AT^SISC=0\r\n",strlen("AT^SISC=0\r\n"),1000);
 
 	            HAL_Delay(3000);
 
-	            HAL_UART_Transmit(&huart1,(uint8_t*)"AT^SISO=0\r\n",strlen("AT^SISO=0\r\n"),1000);
-	            HAL_UART_Receive(&huart1,(uint8_t*)modem,sizeof(modem),1000);
+	            HAL_UART_Transmit(&huart3,(uint8_t*)"AT^SISO=0\r\n",strlen("AT^SISO=0\r\n"),1000);
+	            HAL_UART_Receive(&huart3,(uint8_t*)modem,sizeof(modem),1000);
 
 	            HAL_Delay(5000);
 
 	            ILI9341_FillScreen(WHITE);
 }
 /* USER CODE END 4 */
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM4 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM4) {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
+
 
 /**
   * @brief  This function is executed in case of error occurrence.
